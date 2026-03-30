@@ -10,7 +10,7 @@ slab_h = 160.0        # Total height (y)
 
 # Borehole & Mortar
 hole_r = 9.0          # Borehole radius
-hole_d = 51.0         # Borehole depth
+hole_d = 50.0         # Borehole depth
 anchor_d = 50.0       # Depth of the anchor within the borehole (must be <= hole_d)
 
 # Refinement Region
@@ -33,10 +33,10 @@ mesh_size_concrete_outer = 24.0
 
 
 # Chalice Domain Parameters
-y_bot = -hole_d * 1.0
+y_bot = -hole_d * 1.0 - 4.0
 y_top = 0
 dy = y_top - y_bot  # 10.0
-R_bot = 4 * hole_r         # Radius at the bottom of the chalice
+R_bot = 3 * hole_r         # Radius at the bottom of the chalice
 dR = refine_r * 1.2            # Radius expansion amount at the top
 
 
@@ -177,6 +177,11 @@ if inner_vols:
     cubit.cmd(f"volume {' '.join(inner_vols)} size {mesh_size_concrete_inner}")
 if outer_vols:
     cubit.cmd(f"volume {' '.join(outer_vols)} size {mesh_size_concrete_outer}")
+
+
+#special treatment for the height in the slab.
+# select the front right curves in the slab and set a size there to control the height of the elements in the slab:
+cubit.cmd(f"curve all in volume in grp_concrete expand with x_coord = {slab_w/2.0} tolerance 0.01 and z_coord = 0 tolerance 0.01 size 2.0")
 
 # Enforce pure hexahedral meshing
 # cubit.cmd("volume all scheme sweep")

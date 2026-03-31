@@ -16,8 +16,7 @@
 **  
 *Part, name=steel
 *Include, input="./mesh/modified/steel.inp"
-*Solid Section, elset=PLATE, material=STEEL_PLATE
-*Solid Section, elset=ANCHOR, material=STEEL_ANCHOR
+*Solid Section, elset=STEEL, material=STEEL_PLATE
 *ORIENTATION, name=MORTAR_CYL, SYSTEM=CYLINDRICAL
 0, 0, 0, 0, 1, 0
 1
@@ -82,8 +81,8 @@ concrete-1.concrete_to_mortar, steel-1.mortar_to_concrete
 steel-1.PLATE_BOTTOM, concrete-1.CONCRETE_TOP
 *Contact Property Assignment
 steel-1.PLATE_BOTTOM, concrete-1.CONCRETE_TOP, "steel concrete"
-*Contact Formulation, type=SMALL SLIDING
-steel-1.PLATE_BOTTOM, concrete-1.CONCRETE_TOP
+** *Contact Formulation, type=SMALL SLIDING
+** steel-1.PLATE_BOTTOM, concrete-1.CONCRETE_TOP
 ** BOUNDARY CONDITIONS
 ** 
 ** Name: concrete_xzSymm Type: Symmetry/Antisymmetry/Encastre

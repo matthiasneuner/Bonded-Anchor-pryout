@@ -3,6 +3,7 @@
 ** .. and a standard Abaqus CPS4, which also has also 4 nodes
 *defineElementType, element=C3D20R, shape=hexa20
 *defineElementType, element=C3D8, shape=hexa8
+*defineElementType, element=C3D8R, shape=hexa8
 *defineElementType, element=COH3D8, shape=hexa8
 **
 ** NODAL VARIABLES
@@ -50,37 +51,5 @@
 *ensightPerElementVariableJobEntry, set=ASSEMBLY_CONCRETE-1_CONCRETE, job=alphaD, result=ConcUelSDVs, location=computed, which=average,  values=13
 *ensightPerElementVariableJob, name=damage, dimensions=1
 *ensightPerElementVariableJobEntry, set=ASSEMBLY_CONCRETE-1_CONCRETE, job=damage, result=ConcUelSDVs, location=computed, which=average,  values=14
-
-** ** We export our stresses and strains using Voigt notation ...
-** *ensightPerElementVariableJob, name=stress_voigt, dimensions=6
-** *ensightPerElementVariableJob, name=strain_voigt, dimensions=6
-** ** and for illustrative purposes also using the 3x3 tensor notation!
-** *ensightPerElementVariableJob, name=stress, dimensions=9
-** *ensightPerElementVariableJob, name=strain, dimensions=9
-
-** ** ... For UELS, we access those quantities within the SDVs usingof a python slice (of course we have to know where those variables are located in the SDVs)!
-** *ensightPerElementVariableJobEntry, set=SECCONC, job=stress_voigt, result=ConcUelSDVs, location=computed, which=average,  values=6:12
-** *ensightPerElementVariableJobEntry, set=SECCONC, job=strain_voigt, result=ConcUelSDVs, location=computed, which=average,  values=12:18
-** ** ... and for the 3x3 tensor notation (note that we account for factor two on shear strain terms):
-** *ensightPerElementVariableJobEntry, set=SECCONC, job=stress, result=ConcUelSDVs, location=computed, which=average, values=6:12, f(x)='[x[0], x[3], 0, x[3], x[1], 0, 0, 0, x[2]]'
-** *ensightPerElementVariableJobEntry, set=SECCONC, job=strain, result=ConcUelSDVs, location=computed, which=average, values=12:18, f(x)='[x[0], x[3]/2, 0, x[3]/2, x[1], 0, 0, 0, x[2]]'
-** **
-** ** Here we access standard Abaqus CPS4 results, which has 4 integration points.
-** ** stress and strains, and we can add them to the stress/strain collection of our UELs, so we can post-process them together in ParaView/Ensight
-** ** However, since we have a 2D analysis, Abaqus exports only 2D stress/strain tensors with 3 components. 
-** ** we need to fill them into a 3D Voigt tensor with 6 components, by using the f(x) feature!
-** *computeAverageOverQuadraturePoints, set=SECSTEELLOAD, result=S
-** *computeAverageOverQuadraturePoints, set=SECSTEELLOAD, result=E
-** *computeAverageOverQuadraturePoints, set=SECSTEELBOTTOM, result=S
-** *computeAverageOverQuadraturePoints, set=SECSTEELBOTTOM, result=E
-
-** *ensightPerElementVariableJobEntry, set=SECSTEELLOAD,   job=stress_voigt, result=S, location=computed, which=average, f(x)='[x[0], x[1], 0, x[2], 0, 0]'
-** *ensightPerElementVariableJobEntry, set=SECSTEELBOTTOM, job=stress_voigt, result=S, location=computed, which=average, f(x)='[x[0], x[1], 0, x[2], 0, 0]'
-** *ensightPerElementVariableJobEntry, set=SECSTEELLOAD,   job=strain_voigt, result=E, location=computed, which=average, f(x)='[x[0], x[1], 0, x[2], 0, 0]'
-** *ensightPerElementVariableJobEntry, set=SECSTEELBOTTOM, job=strain_voigt, result=E, location=computed, which=average, f(x)='[x[0], x[1], 0, x[2], 0, 0]'
-
-** ** ** and for the 3x3 tensor notation:
-** *ensightPerElementVariableJobEntry, set=SECSTEELLOAD,   job=stress, result=S, location=computed, which=average, f(x)='[x[0], x[2], 0, x[2], x[1], 0, 0, 0, 0]'
-** *ensightPerElementVariableJobEntry, set=SECSTEELBOTTOM, job=stress, result=S, location=computed, which=average, f(x)='[x[0], x[2], 0, x[2], x[1], 0, 0, 0, 0]'
-** *ensightPerElementVariableJobEntry, set=SECSTEELLOAD,   job=strain, result=E, location=computed, which=average, f(x)='[x[0], x[2]/2, 0, x[2]/2, x[1], 0, 0, 0, 0]'
-** *ensightPerElementVariableJobEntry, set=SECSTEELBOTTOM, job=strain, result=E, location=computed, which=average, f(x)='[x[0], x[2]/2, 0, x[2]/2, x[1], 0, 0, 0, 0]'
+*ensightPerElementVariableJob, name=I1p, dimensions=1
+*ensightPerElementVariableJobEntry, set=ASSEMBLY_CONCRETE-1_CONCRETE, job=I1p, result=ConcUelSDVs, location=computed, which=average,  values=15

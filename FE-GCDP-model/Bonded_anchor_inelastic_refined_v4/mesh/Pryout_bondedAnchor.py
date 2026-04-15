@@ -14,7 +14,7 @@ hole_d = 50.0         # Borehole depth
 anchor_d = 50.0       # Depth of the anchor within the borehole (must be <= hole_d)
 
 # Refinement Region
-refine_r = 120.0       # Radius of the inner refined concrete region
+refine_r = 80.0       # Radius of the inner refined concrete region
 
 # Steel Anchor
 anchor_r = 8.0        # Anchor radius
@@ -37,7 +37,7 @@ y_bot = -hole_d * 1.0 - 4.0
 y_top = 0
 dy = y_top - y_bot  # 10.0
 R_bot = 3 * hole_r         # Radius at the bottom of the chalice
-dR = refine_r * 0.8            # Radius expansion amount at the top
+dR = refine_r * 1.2            # Radius expansion amount at the top
 
 
 # --- GEOMETRY CREATION ---

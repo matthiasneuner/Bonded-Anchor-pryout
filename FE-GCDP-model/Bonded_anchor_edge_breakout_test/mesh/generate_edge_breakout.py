@@ -6,36 +6,38 @@ cubit.cmd("reset")
 
 # --- PARAMETERS ---
 # Concrete Slab
+# c1 = edge distance from anchor center to free edge (x direction)
+# width support = 4 * c1,back ( 240 max.)
 slab_x = 200.0        # Total length (x)
-slab_z = 300.0        # Total width (z)
-slab_h = 160.0        # Total height (y)
+support_w = 20.0      # Width of the support area at the outer corners of the breakout face
+slab_z = 2 * 240  + support_w      # Total width (z) 
+slab_h = 163.5        # Total height (y)
 edge_dist = 80.0      # Distance from anchor center to the free edge (+x direction)
 
 # Support Conditions
-support_w = 40.0      # Width of the support area at the outer corners of the breakout face
 
 # Borehole & Mortar
-hole_r = 9.0          # Borehole radius
-hole_d = 50.0         # Borehole depth
-anchor_d = 50.0       # Depth of the anchor within the borehole (must be <= hole_d)
+hole_r = 11.0          # Borehole radius
+hole_d = 120.0         # Borehole depth
+anchor_d = 120.0       # Depth of the anchor within the borehole (must be <= hole_d)
 
 # Refinement Domain
 # The lateral opening is calculated automatically to perfectly hit the support boundaries
 vertical_angle = 0.0 # Angle (in degrees) of the downward vertical opening towards the free edge
 
 # Steel Anchor
-anchor_r = 8.0        # Anchor radius
-anchor_free_h = 16.0  # Anchor height above the concrete slab
+anchor_r = 10.0        # Anchor radius
+anchor_free_h = 20.0  # Anchor height above the concrete slab
 
 # Steel Plate
-plate_w = 64.0        # Plate width (x and z)
-plate_h = 16.0        # Plate thickness (y)
+plate_w = 80.0        # Plate width (x and z)
+plate_h = 20.0        # Plate thickness (y)
 plate_cut_h = plate_h / 3.0 # Webcut plate for load application
 
 # Mesh Parameters
 mesh_size_steel = 4.0
-mesh_size_concrete_inner = 6.0  # Used for boundaries near the anchor
-mesh_size_concrete_outer = 18.0 # Base size for the concrete block
+mesh_size_concrete_inner = 8.0  # Used for boundaries near the anchor
+mesh_size_concrete_outer = 24.0 # Base size for the concrete block
 
 
 # --- GEOMETRY CREATION ---
@@ -213,6 +215,7 @@ for h in all_hexes:
     if z >= z_limit - tol and y >= y_limit - tol:
         breakout_hexes.append(str(h))
 
+
 if breakout_hexes:
     print(f"Found {len(breakout_hexes)} hexes in the breakout pyramid domain. Grouping and refining...")
     cubit.cmd("create group 'breakout_domain'")
@@ -221,8 +224,11 @@ if breakout_hexes:
     for i in range(0, len(breakout_hexes), chunk_size):
         chunk = " ".join(breakout_hexes[i:i + chunk_size])
         cubit.cmd(f"group 'breakout_domain' add hex {chunk}")
+
+    # grp_id_breakoug = cubit.get_id("group", "breakout_domain")
     
-    cubit.cmd("refine hex in breakout_domain depth 0")
+    cubit.cmd(f"group 'adjacent_hexes' add hex in face in hex in group 5")
+    cubit.cmd("refine hex in group 6 depth 0 smooth")
     print("Refinement complete.")
 else:
     print("No hexes found within the specified breakout domain parameters.")

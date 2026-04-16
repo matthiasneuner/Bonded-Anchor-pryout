@@ -8,10 +8,10 @@ cubit.cmd("reset")
 # Concrete Slab
 # c1 = edge distance from anchor center to free edge (x direction)
 # width support = 4 * c1,back ( 240 max.)
-slab_x = 200.0        # Total length (x)
+slab_x = 300.0        # Total length (x)
 support_w = 20.0      # Width of the support area at the outer corners of the breakout face
 slab_z = 2 * 240  + support_w      # Total width (z) 
-slab_h = 163.5        # Total height (y)
+slab_h = 200        # Total height (y)
 edge_dist = 80.0      # Distance from anchor center to the free edge (+x direction)
 
 # Support Conditions

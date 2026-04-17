@@ -21,9 +21,9 @@ anchor_d = 120.0       # Depth of the anchor within the borehole (must be <= hol
 
 # Refinement Domain (Hollow Rectangular Pyramid Shell)
 vertical_angle = 10.0   # Angle (in degrees) of the downward vertical opening towards the free edge
-band_x = 60.0e0         # Thickness of the solid refined block in front of the anchor (x-dir)
-band_y = 10.0e0          # Thickness of the refined shell from the top surface (y-dir)
-band_z = 20.0e0          # Thickness of the refined shell from the symmetry plane (z-dir)
+band_x = 60.0e10         # Thickness of the solid refined block in front of the anchor (x-dir)
+band_y = 10.0e10          # Thickness of the refined shell from the top surface (y-dir)
+band_z = 20.0e10          # Thickness of the refined shell from the symmetry plane (z-dir)
 
 # Steel Anchor
 anchor_r = 10.0        # Anchor radius
@@ -253,7 +253,7 @@ if breakout_hexes:
     cubit.cmd("group 'breakout_domain' add hex in adjacent_hexes")
     
     # Refine the combined group in one pass
-    cubit.cmd("refine hex in breakout_domain depth 0 numsplit 1 smooth")
+    cubit.cmd("refine hex in breakout_domain depth 0 numsplit 1 ")
     print("Refinement complete.")
 else:
     print("No hexes found within the specified breakout domain parameters.")

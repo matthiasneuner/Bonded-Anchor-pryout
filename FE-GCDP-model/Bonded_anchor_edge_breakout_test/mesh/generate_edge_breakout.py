@@ -19,15 +19,12 @@ hole_r = 11.0          # Borehole radius
 hole_d = 120.0         # Borehole depth
 anchor_d = 120.0       # Depth of the anchor within the borehole (must be <= hole_d)
 
-# Refinement Domain (Hollow Pyramid Shell)
-vertical_angle = 0.0   # Angle (in degrees) of the downward vertical opening towards the free edge
-band_x = 55.0          # Thickness of the solid refined block in front of the anchor (x-dir)
-band_y = 5.0          # Thickness of the refined shell from the top surface (y-dir)
-band_z = 5.0          # Thickness of the refined shell from the symmetry plane (z-dir)
+# Refinement Domain (Hollow Rectangular Pyramid Shell)
+vertical_angle = 10.0   # Angle (in degrees) of the downward vertical opening towards the free edge
+band_x = 60.0e0         # Thickness of the solid refined block in front of the anchor (x-dir)
+band_y = 10.0e0          # Thickness of the refined shell from the top surface (y-dir)
+band_z = 20.0e0          # Thickness of the refined shell from the symmetry plane (z-dir)
 
-band_x = 55000.0          # Thickness of the solid refined block in front of the anchor (x-dir)
-band_y = 5000.0          # Thickness of the refined shell from the top surface (y-dir)
-band_z = 5000.0          # Thickness of the refined shell from the symmetry plane (z-dir)
 # Steel Anchor
 anchor_r = 10.0        # Anchor radius
 anchor_free_h = 20.0   # Anchor height above the concrete slab
@@ -160,10 +157,10 @@ cubit.cmd(f"volume in grp_concrete size {mesh_size_concrete_outer}")
 cubit.cmd(f"volume in grp_steel size {mesh_size_steel}")
 cubit.cmd(f"volume in grp_mortar size {mesh_size_steel}")
 
-# # Ensure the interface at the borehole isn't too coarse before refinement
+# Ensure the interface at the borehole isn't too coarse before refinement
 # cubit.cmd(f"curve all in surface with name 'surface_borehole*' size {mesh_size_concrete_inner}")
 
-# # Apply fine mesh size to the free edge front face (excluding support boundaries)
+# Apply fine mesh size to the free edge front face (excluding support boundaries)
 # front_surfs = cubit.parse_cubit_list("surface", f"in grp_concrete expand with x_coord = {edge_dist} tolerance 0.01")
 # free_edge_surfs_to_size = []
 
@@ -175,7 +172,7 @@ cubit.cmd(f"volume in grp_mortar size {mesh_size_steel}")
 # if free_edge_surfs_to_size:
 #     cubit.cmd(f"surface {' '.join(free_edge_surfs_to_size)} size {mesh_size_concrete_inner}")
 
-# # Enforce height controls on the slab's symmetric cut face
+# Enforce height controls on the slab's symmetric cut face
 # cubit.cmd(f"curve all in volume in grp_concrete expand with z_coord = 0 tolerance 0.01 size 4.0")
 
 # Generate Base Mesh
@@ -183,7 +180,7 @@ cubit.cmd("mesh volume all")
 
 
 # ==========================================
-# ELEMENT-LEVEL REFINEMENT (HOLLOW BAND PYRAMID)
+# ELEMENT-LEVEL REFINEMENT (HOLLOW RECTANGULAR PYRAMID)
 # ==========================================
 all_hexes = cubit.parse_cubit_list("hex", "in grp_concrete expand")
 breakout_hexes = []
@@ -195,7 +192,7 @@ y_start = -anchor_d - 10.0
 
 # Calculate expansion slopes
 dx_total = edge_dist - x_start
-target_z_at_edge = -slab_z/2.0 + support_w
+target_z_at_edge = -slab_z/2.0 + 2 * support_w
 lateral_tan = abs(target_z_at_edge - z_start) / dx_total
 vertical_tan = math.tan(math.radians(vertical_angle))
 
@@ -210,7 +207,7 @@ for h in all_hexes:
     # Distance from the start
     dx = max(0, x - x_start)
     
-    # 1. OUTLINE THE OUTER PYRAMID
+    # 1. OUTLINE THE OUTER PYRAMID (Rectangular Base)
     y_lim = y_start - dx * vertical_tan
     z_lim = z_start - dx * lateral_tan
     
@@ -219,11 +216,9 @@ for h in all_hexes:
     
     in_main = False
     if y >= y_lim_eff and z >= z_lim_eff:
-        # Check diagonal boundary: (y/y_lim + z/z_lim <= 1.0)
-        if (y * z_lim_eff + z * y_lim_eff) <= (y_lim_eff * z_lim_eff):
-            in_main = True
+        in_main = True
 
-    # 2. OUTLINE THE INNER UNCRACKED CORE
+    # 2. OUTLINE THE INNER UNCRACKED CORE (Rectangular Base)
     in_core = False
     
     # The core only starts after band_x
@@ -232,12 +227,10 @@ for h in all_hexes:
         y_in = y_lim + band_y + tol
         z_in = z_lim + band_z + tol
         
-        # Ensure the core hasn't collapsed past the surface
-        if y_in < -0.1 and z_in < -0.1:
+        # Ensure the core hasn't collapsed past the surface boundaries
+        if y_in < 0.1 and z_in < 0.1:
             if y >= y_in and z >= z_in:
-                # Check diagonal boundary of the inner core
-                if (y * z_in + z * y_in) <= (y_in * z_in):
-                    in_core = True
+                in_core = True
 
     # 3. SELECTION LOGIC
     # Refine if it's inside the main pyramid, but outside the uncracked core

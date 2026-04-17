@@ -8,26 +8,29 @@ cubit.cmd("reset")
 # Concrete Slab
 # c1 = edge distance from anchor center to free edge (x direction)
 # width support = 4 * c1,back ( 240 max.)
-slab_x = 300.0        # Total length (x)
+slab_x = 250.0        # Total length (x)
 support_w = 20.0      # Width of the support area at the outer corners of the breakout face
-slab_z = 2 * 240  + support_w      # Total width (z) 
-slab_h = 200        # Total height (y)
+slab_z = 2 * 240 + support_w # Total width (z) 
+slab_h = 250          # Total height (y)
 edge_dist = 80.0      # Distance from anchor center to the free edge (+x direction)
-
-# Support Conditions
 
 # Borehole & Mortar
 hole_r = 11.0          # Borehole radius
 hole_d = 120.0         # Borehole depth
 anchor_d = 120.0       # Depth of the anchor within the borehole (must be <= hole_d)
 
-# Refinement Domain
-# The lateral opening is calculated automatically to perfectly hit the support boundaries
-vertical_angle = 0.0 # Angle (in degrees) of the downward vertical opening towards the free edge
+# Refinement Domain (Hollow Pyramid Shell)
+vertical_angle = 0.0   # Angle (in degrees) of the downward vertical opening towards the free edge
+band_x = 55.0          # Thickness of the solid refined block in front of the anchor (x-dir)
+band_y = 5.0          # Thickness of the refined shell from the top surface (y-dir)
+band_z = 5.0          # Thickness of the refined shell from the symmetry plane (z-dir)
 
+band_x = 55000.0          # Thickness of the solid refined block in front of the anchor (x-dir)
+band_y = 5000.0          # Thickness of the refined shell from the top surface (y-dir)
+band_z = 5000.0          # Thickness of the refined shell from the symmetry plane (z-dir)
 # Steel Anchor
 anchor_r = 10.0        # Anchor radius
-anchor_free_h = 20.0  # Anchor height above the concrete slab
+anchor_free_h = 20.0   # Anchor height above the concrete slab
 
 # Steel Plate
 plate_w = 80.0        # Plate width (x and z)
@@ -36,8 +39,8 @@ plate_cut_h = plate_h / 3.0 # Webcut plate for load application
 
 # Mesh Parameters
 mesh_size_steel = 4.0
-mesh_size_concrete_inner = 8.0  # Used for boundaries near the anchor
-mesh_size_concrete_outer = 24.0 # Base size for the concrete block
+mesh_size_concrete_inner = 12.0  # Used for boundaries near the anchor
+mesh_size_concrete_outer = 12.0 # Base size for the concrete block
 
 
 # --- GEOMETRY CREATION ---
@@ -157,67 +160,93 @@ cubit.cmd(f"volume in grp_concrete size {mesh_size_concrete_outer}")
 cubit.cmd(f"volume in grp_steel size {mesh_size_steel}")
 cubit.cmd(f"volume in grp_mortar size {mesh_size_steel}")
 
-# Ensure the interface at the borehole isn't too coarse before refinement
-cubit.cmd(f"curve all in surface with name 'surface_borehole*' size {mesh_size_concrete_inner}")
+# # Ensure the interface at the borehole isn't too coarse before refinement
+# cubit.cmd(f"curve all in surface with name 'surface_borehole*' size {mesh_size_concrete_inner}")
 
-# Enforce height controls on the slab's symmetric cut face
-cubit.cmd(f"curve all in volume in grp_concrete expand with z_coord = 0 tolerance 0.01 size 4.0")
+# # Apply fine mesh size to the free edge front face (excluding support boundaries)
+# front_surfs = cubit.parse_cubit_list("surface", f"in grp_concrete expand with x_coord = {edge_dist} tolerance 0.01")
+# free_edge_surfs_to_size = []
+
+# for s in front_surfs:
+#     cent = cubit.get_center_point("surface", s)
+#     if cent[2] >= (-slab_z/2.0 + support_w - 0.01):
+#         free_edge_surfs_to_size.append(str(s))
+
+# if free_edge_surfs_to_size:
+#     cubit.cmd(f"surface {' '.join(free_edge_surfs_to_size)} size {mesh_size_concrete_inner}")
+
+# # Enforce height controls on the slab's symmetric cut face
+# cubit.cmd(f"curve all in volume in grp_concrete expand with z_coord = 0 tolerance 0.01 size 4.0")
 
 # Generate Base Mesh
 cubit.cmd("mesh volume all")
 
 
 # ==========================================
-# ELEMENT-LEVEL REFINEMENT (HORIZONTAL PYRAMID)
+# ELEMENT-LEVEL REFINEMENT (HOLLOW BAND PYRAMID)
 # ==========================================
 all_hexes = cubit.parse_cubit_list("hex", "in grp_concrete expand")
 breakout_hexes = []
 
-# Starting bounds (buffer area just behind and around the anchor)
+# Starting bounds for the Outer Pyramid
 x_start = -hole_r - 15.0
 z_start = -hole_r - 10.0
 y_start = -anchor_d - 10.0
 
-# 1. Calculate lateral expansion to perfectly hit the support edge boundary
+# Calculate expansion slopes
 dx_total = edge_dist - x_start
 target_z_at_edge = -slab_z/2.0 + support_w
-dz_total = abs(target_z_at_edge - z_start)
-
-lateral_tan = dz_total / dx_total
-
-# 2. Calculate vertical expansion based on the specified opening angle
+lateral_tan = abs(target_z_at_edge - z_start) / dx_total
 vertical_tan = math.tan(math.radians(vertical_angle))
 
-# Tolerance to ensure elements directly ON the boundary are included
 tol = mesh_size_concrete_outer / 2.0 + 1.0 
 
 for h in all_hexes:
     x, y, z = cubit.get_center_point("hex", h)
     
-    # Check if behind the start area
-    if x < x_start:
+    if x < x_start or x > edge_dist + tol:
         continue
         
-    # Check if beyond the free edge (plus tolerance to catch boundary hexes)
-    if x > edge_dist + tol:
-        continue
+    # Distance from the start
+    dx = max(0, x - x_start)
+    
+    # 1. OUTLINE THE OUTER PYRAMID
+    y_lim = y_start - dx * vertical_tan
+    z_lim = z_start - dx * lateral_tan
+    
+    y_lim_eff = y_lim - tol
+    z_lim_eff = z_lim - tol
+    
+    in_main = False
+    if y >= y_lim_eff and z >= z_lim_eff:
+        # Check diagonal boundary: (y/y_lim + z/z_lim <= 1.0)
+        if (y * z_lim_eff + z * y_lim_eff) <= (y_lim_eff * z_lim_eff):
+            in_main = True
+
+    # 2. OUTLINE THE INNER UNCRACKED CORE
+    in_core = False
+    
+    # The core only starts after band_x
+    if x >= x_start + band_x:
+        # Shift the boundaries inwards by the band thickness
+        y_in = y_lim + band_y + tol
+        z_in = z_lim + band_z + tol
         
-    # Distance from the anchor
-    dx = x - x_start
-    if dx < 0: dx = 0
-    
-    # Calculate limits at this specific X (pyramid expands as X increases)
-    z_limit = z_start - (dx * lateral_tan)
-    y_limit = y_start - (dx * vertical_tan)
-    
-    # Dynamic Lateral (Z) and Vertical (Y) Checks
-    # Half model uses negative coordinates. "Inside" is closer to 0.
-    if z >= z_limit - tol and y >= y_limit - tol:
+        # Ensure the core hasn't collapsed past the surface
+        if y_in < -0.1 and z_in < -0.1:
+            if y >= y_in and z >= z_in:
+                # Check diagonal boundary of the inner core
+                if (y * z_in + z * y_in) <= (y_in * z_in):
+                    in_core = True
+
+    # 3. SELECTION LOGIC
+    # Refine if it's inside the main pyramid, but outside the uncracked core
+    if in_main and not in_core:
         breakout_hexes.append(str(h))
 
 
 if breakout_hexes:
-    print(f"Found {len(breakout_hexes)} hexes in the breakout pyramid domain. Grouping and refining...")
+    print(f"Found {len(breakout_hexes)} hexes in the hollow breakout band. Grouping and refining...")
     cubit.cmd("create group 'breakout_domain'")
     
     chunk_size = 200
@@ -225,10 +254,13 @@ if breakout_hexes:
         chunk = " ".join(breakout_hexes[i:i + chunk_size])
         cubit.cmd(f"group 'breakout_domain' add hex {chunk}")
 
-    # grp_id_breakoug = cubit.get_id("group", "breakout_domain")
+    # Create adjacent hexes group and permanently merge into breakout_domain
+    cubit.cmd("create group 'adjacent_hexes'")
+    cubit.cmd("group 'adjacent_hexes' add hex in face in hex in breakout_domain")
+    cubit.cmd("group 'breakout_domain' add hex in adjacent_hexes")
     
-    cubit.cmd(f"group 'adjacent_hexes' add hex in face in hex in group 5")
-    cubit.cmd("refine hex in group 6 depth 0 smooth")
+    # Refine the combined group in one pass
+    cubit.cmd("refine hex in breakout_domain depth 0 numsplit 1 smooth")
     print("Refinement complete.")
 else:
     print("No hexes found within the specified breakout domain parameters.")

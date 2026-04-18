@@ -253,7 +253,7 @@ if breakout_hexes:
     cubit.cmd("group 'breakout_domain' add hex in adjacent_hexes")
     
     # Refine the combined group in one pass
-    cubit.cmd("refine hex in breakout_domain depth 0 numsplit 1 ")
+    cubit.cmd("refine hex in breakout_domain depth 0 numsplit 1 smooth")
     print("Refinement complete.")
 else:
     print("No hexes found within the specified breakout domain parameters.")

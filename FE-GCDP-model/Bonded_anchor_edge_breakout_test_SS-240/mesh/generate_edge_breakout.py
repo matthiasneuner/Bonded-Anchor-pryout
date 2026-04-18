@@ -5,14 +5,25 @@ import math
 cubit.cmd("reset")
 
 # --- PARAMETERS ---
+# Far Field Parameters
+far_x = 360.0        # Size of far field in -x direction
+far_y = 280.0        # Size of far field in -y direction
+far_z = 480.0        # Size of far field in -z direction
+ff_interval = 3
+
 # Concrete Slab
 # c1 = edge distance from anchor center to free edge (x direction)
 # width support = 4 * c1,back ( 240 max.)
-slab_x = 360.0        # Total length (x)
-support_w = 20.0      # Width of the support area at the outer corners of the breakout face
+slab_x = 360.0       # Total length (x)
+support_w = 20.0     # Width of the support area at the outer corners of the breakout face
 slab_z = 2 * 240 + support_w # Total width (z) 
-slab_h = 250          # Total height (y)
+slab_h = 220         # Total height (y)
 edge_dist = 240.0      # Distance from anchor center to the free edge (+x direction)
+
+# Derived Total Dimensions
+total_x = slab_x + far_x
+total_y = slab_h + far_y
+total_z = slab_z + 2 * far_z # Symmetric addition before Z-cut
 
 # Borehole & Mortar
 hole_r = 11.0          # Borehole radius
@@ -37,19 +48,32 @@ plate_cut_h = plate_h / 3.0 # Webcut plate for load application
 # Mesh Parameters
 mesh_size_steel = 4.0
 mesh_size_concrete_inner = 14.0  # Used for boundaries near the anchor
-mesh_size_concrete_outer = 14.0 # Base size for the concrete block
+mesh_size_concrete_outer = 14.0  # Base size for the concrete block
 
 
 # --- GEOMETRY CREATION ---
 
-# 1. Concrete Slab
-cubit.cmd(f"create brick x {slab_x} y {slab_h} z {slab_z}")
-v_slab = cubit.get_last_id("volume")
+# 1. Concrete Slab with Far Fields
+cubit.cmd(f"create brick x {total_x} y {total_y} z {total_z}")
+v_base = cubit.get_last_id("volume")
 
-# Shift slab so the +X face is at 'edge_dist'
-shift_x = edge_dist - (slab_x / 2.0)
-cubit.cmd(f"move volume {v_slab} x {shift_x} y {-slab_h / 2.0}")
-cubit.cmd(f"volume {v_slab} name 'concrete_main'")
+# Shift so the +X face is at 'edge_dist', top face at 0, centered on Z
+shift_x_base = edge_dist - (total_x / 2.0)
+cubit.cmd(f"move volume {v_base} x {shift_x_base} y {-total_y / 2.0}")
+
+# Webcut out the original slab boundary planes to isolate regions
+cubit.cmd(f"webcut volume all with plane yplane offset {-slab_h}")
+cubit.cmd(f"webcut volume all with plane xplane offset {edge_dist - slab_x}")
+cubit.cmd(f"webcut volume all with plane zplane offset {-slab_z / 2.0}")
+cubit.cmd(f"webcut volume all with plane zplane offset {slab_z / 2.0}")
+
+# Name the far fields and the main concrete block
+cubit.cmd("volume all name 'concrete_far'")
+cubit.cmd(f"volume with x_coord > {edge_dist - slab_x - 0.1} and y_coord > {-slab_h - 0.1} and z_coord > {-slab_z/2.0 - 0.1} and z_coord < {slab_z/2.0 + 0.1} name 'concrete_main'")
+
+# Retrieve the inner slab ID for the borehole subtraction
+v_slab_list = cubit.parse_cubit_list("volume", "with name 'concrete_main'")
+v_slab = v_slab_list[0]
 
 # Create and subtract the borehole tool
 cubit.cmd(f"create cylinder height {hole_d} radius {hole_r}")
@@ -114,7 +138,7 @@ cubit.cmd(f"volume {v_plate} name 'steel_plate'")
 # 1. Extend the borehole profile down for clean hex sweeping
 cubit.cmd(f"webcut volume with name 'concrete_main' cylinder radius {hole_r} axis y")
 
-# 2. Create the support boundaries on the free edge
+# 2. Create the support boundaries on the free edge (this safely slices through far fields as well)
 cubit.cmd(f"webcut volume with name 'concrete_*' plane zplane offset {-slab_z/2.0 + support_w}")
 cubit.cmd(f"webcut volume with name 'concrete_*' plane zplane offset {slab_z/2.0 - support_w}")
 
@@ -157,23 +181,16 @@ cubit.cmd(f"volume in grp_concrete size {mesh_size_concrete_outer}")
 cubit.cmd(f"volume in grp_steel size {mesh_size_steel}")
 cubit.cmd(f"volume in grp_mortar size {mesh_size_steel}")
 
-# Ensure the interface at the borehole isn't too coarse before refinement
-# cubit.cmd(f"curve all in surface with name 'surface_borehole*' size {mesh_size_concrete_inner}")
+# --- FAR FIELD MESH CONSTRAINTS (INTERVAL = 1) ---
+# Identify midpoints of the far field extension curves to precisely target them
+center_x_far = edge_dist - slab_x - far_x / 2.0
+center_y_far = -slab_h - far_y / 2.0
+center_z_far_neg = -slab_z / 2.0 - far_z / 2.0
 
-# Apply fine mesh size to the free edge front face (excluding support boundaries)
-# front_surfs = cubit.parse_cubit_list("surface", f"in grp_concrete expand with x_coord = {edge_dist} tolerance 0.01")
-# free_edge_surfs_to_size = []
+cubit.cmd(f"curve in volume with name 'concrete_far*' expand with x_coord = {center_x_far} tolerance 0.1 interval {ff_interval}")
+cubit.cmd(f"curve in volume with name 'concrete_far*' expand with y_coord = {center_y_far} tolerance 0.1 interval {ff_interval}")
+cubit.cmd(f"curve in volume with name 'concrete_far*' expand with z_coord = {center_z_far_neg} tolerance 0.1 interval {ff_interval}")
 
-# for s in front_surfs:
-#     cent = cubit.get_center_point("surface", s)
-#     if cent[2] >= (-slab_z/2.0 + support_w - 0.01):
-#         free_edge_surfs_to_size.append(str(s))
-
-# if free_edge_surfs_to_size:
-#     cubit.cmd(f"surface {' '.join(free_edge_surfs_to_size)} size {mesh_size_concrete_inner}")
-
-# Enforce height controls on the slab's symmetric cut face
-# cubit.cmd(f"curve all in volume in grp_concrete expand with z_coord = 0 tolerance 0.01 size 4.0")
 
 # Generate Base Mesh
 cubit.cmd("mesh volume all")
@@ -289,18 +306,18 @@ cubit.cmd(f"nodeset {currentnodeset_id} add node in sideset {currentsideset_id}"
 cubit.cmd(f"nodeset {currentnodeset_id} name 'concrete_top'")
 currentsideset_id += 1; currentnodeset_id += 1
 
-# Concrete Bottom
+# Concrete Bottom (Moved to new far-field extremity)
 cubit.cmd(f"create sideset {currentsideset_id}")
 cubit.cmd(f"sideset {currentsideset_id} name 'bottom'")
-cubit.cmd(f"sideset {currentsideset_id} add surface in grp_concrete expand with y_coord = {-slab_h}")
+cubit.cmd(f"sideset {currentsideset_id} add surface in grp_concrete expand with y_coord = {-total_y}")
 cubit.cmd(f"nodeset {currentnodeset_id} add node in sideset {currentsideset_id}")
 cubit.cmd(f"nodeset {currentnodeset_id} name 'bottom'")
 currentsideset_id += 1; currentnodeset_id += 1
 
-# Concrete Back Face (Support)
+# Concrete Back Face Support (Moved to new far-field extremity)
 cubit.cmd(f"create sideset {currentsideset_id}")
 cubit.cmd(f"sideset {currentsideset_id} name 'back_support'")
-cubit.cmd(f"sideset {currentsideset_id} add surface in grp_concrete expand with x_coord = {edge_dist - slab_x}")
+cubit.cmd(f"sideset {currentsideset_id} add surface in grp_concrete expand with x_coord = {edge_dist - total_x}")
 cubit.cmd(f"nodeset {currentnodeset_id} add node in sideset {currentsideset_id}")
 cubit.cmd(f"nodeset {currentnodeset_id} name 'back_support'")
 currentsideset_id += 1; currentnodeset_id += 1
@@ -312,7 +329,8 @@ free_edge_surfs = []
 
 for s in all_front_surfs:
     cent = cubit.get_center_point("surface", s)
-    if cent[2] < (-slab_z/2.0 + support_w + 0.01):
+    # Modified to ensure the support block stays exactly at the physical reaction frame location
+    if cent[2] < (-slab_z/2.0 + support_w + 0.01) and cent[2] > (-slab_z/2.0 - 0.01):
         support_surfs.append(str(s))
     else:
         free_edge_surfs.append(str(s))
@@ -336,10 +354,10 @@ if free_edge_surfs:
     currentsideset_id += 1; currentnodeset_id += 1
 # -----------------------------------------------------------
 
-# Z-Symmetry Back Plane
+# Z-Symmetry Back Plane (Moved to new far-field extremity)
 cubit.cmd(f"create sideset {currentsideset_id}")
 cubit.cmd(f"sideset {currentsideset_id} name 'z_minus_bound'")
-cubit.cmd(f"sideset {currentsideset_id} add surface in grp_concrete expand with z_coord = {-slab_z/2.0}")
+cubit.cmd(f"sideset {currentsideset_id} add surface in grp_concrete expand with z_coord = {-slab_z/2.0 - far_z}")
 currentsideset_id += 1
 
 # Plate Bottom

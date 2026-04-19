@@ -7,18 +7,18 @@ cubit.cmd("reset")
 # --- PARAMETERS ---
 # Far Field Parameters
 far_x = 360.0        # Size of far field in -x direction
-far_y = 280.0        # Size of far field in -y direction
-far_z = 480.0        # Size of far field in -z direction
+far_y = 250.0        # Size of far field in -y direction
+far_z = 320.0        # Size of far field in -z direction
 ff_interval = 3
 
 # Concrete Slab
-# c1 = edge distance from anchor center to free edge (x direction)
-# width support = 4 * c1,back ( 240 max.)
-slab_x = 360.0       # Total length (x)
+edge_dist = 160.0    # Distance from anchor center to the free edge (+x direction)
+slab_x = 300.0       # Total length (x)
 support_w = 20.0     # Width of the support area at the outer corners of the breakout face
-slab_z = 2 * 160 + support_w # Total width (z) 
-slab_h = 220         # Total height (y)
-edge_dist = 160.0      # Distance from anchor center to the free edge (+x direction)
+
+# Distance of the inner supports is 4 * edge_dist. Total width adds the support blocks.
+slab_z = (4.0 * edge_dist) + (2.0 * support_w) 
+slab_h = 250         # Total height (y)
 
 # Derived Total Dimensions
 total_x = slab_x + far_x
@@ -32,9 +32,9 @@ anchor_d = 120.0       # Depth of the anchor within the borehole (must be <= hol
 
 # Refinement Domain (Hollow Rectangular Pyramid Shell)
 vertical_angle = 10.0   # Angle (in degrees) of the downward vertical opening towards the free edge
-band_x = 60.0e1         # Thickness of the solid refined block in front of the anchor (x-dir)
-band_y = 10.0e1          # Thickness of the refined shell from the top surface (y-dir)
-band_z = 20.0e1          # Thickness of the refined shell from the symmetry plane (z-dir)
+band_x = 60.0e0         # Thickness of the solid refined block in front of the anchor (x-dir)
+band_y = 10.0e0          # Thickness of the refined shell from the top surface (y-dir)
+band_z = 20.0e0          # Thickness of the refined shell from the symmetry plane (z-dir)
 
 # Steel Anchor
 anchor_r = 10.0        # Anchor radius
@@ -47,8 +47,7 @@ plate_cut_h = plate_h / 3.0 # Webcut plate for load application
 
 # Mesh Parameters
 mesh_size_steel = 4.0
-mesh_size_concrete_inner = 14.0  # Used for boundaries near the anchor
-mesh_size_concrete_outer = 14.0  # Base size for the concrete block
+mesh_size_concrete_outer = 15.0  # Base size for the concrete block
 
 
 # --- GEOMETRY CREATION ---
@@ -205,11 +204,11 @@ breakout_hexes = []
 # Starting bounds for the Outer Pyramid
 x_start = -hole_r - 15.0
 z_start = -hole_r - 10.0
-y_start = -anchor_d - 10.0
+y_start = -anchor_d - 25.0
 
 # Calculate expansion slopes
 dx_total = edge_dist - x_start
-target_z_at_edge = -slab_z/2.0 + 2 * support_w
+target_z_at_edge = -slab_z/2.0 + 2.0 * support_w
 lateral_tan = abs(target_z_at_edge - z_start) / dx_total
 vertical_tan = math.tan(math.radians(vertical_angle))
 

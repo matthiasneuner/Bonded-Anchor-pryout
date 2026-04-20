@@ -31,13 +31,14 @@ hole_d = 120.0         # Borehole depth
 anchor_d = 120.0       # Depth of the anchor within the borehole (must be <= hole_d)
 
 # Refinement Domain (Hollow Rectangular Pyramid Shell)
-vertical_angle = 30.0   # Angle (in degrees) of the downward vertical opening towards the free edge
+vertical_angle = 35.0   # Angle (in degrees) of the downward vertical opening towards the free edge
 lateral_angle = 60.0    # Angle (in degrees) of the lateral opening towards the supports
 band_x = 50.0e0         # Thickness of the solid refined block in front of the anchor (x-dir)
 band_y = 15.0e0         # Thickness of the refined shell from the top surface (y-dir)
 band_z = 20.0e0         # Thickness of the refined shell from the symmetry plane (z-dir)
-corner_r = 65.0         # Radius to round off the outer lower pyramid edge (-y and -z)
-y_flat_limit = -200.0   # Y-coordinate where the downward pyramid expansion flattens out
+corner_r = 60.0         # Radius to round off the outer lower pyramid edge (-y and -z)
+y_flat_limit = -190.0   # Base Y-coord where the downward pyramid expansion hits the floor
+bottom_angle = 5.0     # Inclination angle (degrees) rotating around the X-axis
 
 # Steel Anchor
 anchor_r = 10.0        # Anchor radius
@@ -50,7 +51,7 @@ plate_cut_h = plate_h / 3.0 # Webcut plate for load application
 
 # Mesh Parameters
 mesh_size_steel = 4.0
-mesh_size_concrete_outer = 15.0  # Base size for the concrete block
+mesh_size_concrete_outer = 15.5  # Base size for the concrete block
 
 
 # --- GEOMETRY CREATION ---
@@ -204,14 +205,15 @@ all_hexes = cubit.parse_cubit_list("hex", "in grp_concrete expand")
 breakout_hexes = []
 
 # Starting bounds for the Outer Pyramid
-x_start = -hole_r - 10.0
+x_start = -hole_r - 15.0
 z_start = -hole_r - 10.0
-y_start = -anchor_d - 15.0
-x_angle_start = 1.0 * hole_r  
+y_start = -anchor_d - 20.0
+x_angle_start = 1.8 * hole_r  
 
 # Calculate expansion slopes
 vertical_tan = math.tan(math.radians(vertical_angle))
 lateral_tan = math.tan(math.radians(lateral_angle))
+bottom_tan = math.tan(math.radians(bottom_angle))
 
 tol = mesh_size_concrete_outer / 2.0 + 1.0 
 support_inner_z = -slab_z / 2.0 + 1.0 * support_w
@@ -233,8 +235,12 @@ for h in all_hexes:
     y_lim_raw = y_start - dx_y * vertical_tan
     z_lim_raw = z_start - dx_z * lateral_tan
     
-    # CLAMP the lateral expansion to the support boundary and vertical to the flat limit.
-    y_lim = max(y_lim_raw, y_flat_limit)
+    # Calculate the inclined floor (rotation around the X-axis)
+    # For negative z, a positive angle makes the floor rise (become less negative)
+    y_floor = y_flat_limit - z * bottom_tan
+    
+    # CLAMP the lateral expansion to the support boundary and vertical to the inclined floor.
+    y_lim = max(y_lim_raw, y_floor)
     z_lim = max(z_lim_raw, support_inner_z)
     
     y_lim_eff = y_lim - tol
@@ -300,6 +306,8 @@ if breakout_hexes:
     print("Refinement complete.")
 else:
     print("No hexes found within the specified breakout domain parameters.")
+
+# return
 
 
 # --- BLOCKS ---

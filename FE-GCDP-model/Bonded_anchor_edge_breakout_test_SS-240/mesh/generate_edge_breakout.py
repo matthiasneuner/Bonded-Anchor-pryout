@@ -7,18 +7,18 @@ cubit.cmd("reset")
 # --- PARAMETERS ---
 # Far Field Parameters
 far_x = 360.0        # Size of far field in -x direction
-far_y = 280.0        # Size of far field in -y direction
-far_z = 480.0        # Size of far field in -z direction
+far_y = 250.0        # Size of far field in -y direction
+far_z = 320.0        # Size of far field in -z direction
 ff_interval = 3
 
 # Concrete Slab
-# c1 = edge distance from anchor center to free edge (x direction)
-# width support = 4 * c1,back ( 240 max.)
-slab_x = 360.0       # Total length (x)
+edge_dist = 240.0    # Distance from anchor center to the free edge (+x direction)
+slab_x = 300.0       # Total length (x)
 support_w = 20.0     # Width of the support area at the outer corners of the breakout face
-slab_z = 2 * 240 + support_w # Total width (z) 
-slab_h = 220         # Total height (y)
-edge_dist = 240.0      # Distance from anchor center to the free edge (+x direction)
+
+# Distance of the inner supports is 4 * edge_dist. Total width adds the support blocks.
+slab_z = (4.0 * edge_dist) + (2.0 * support_w) 
+slab_h = 250         # Total height (y)
 
 # Derived Total Dimensions
 total_x = slab_x + far_x
@@ -31,10 +31,14 @@ hole_d = 120.0         # Borehole depth
 anchor_d = 120.0       # Depth of the anchor within the borehole (must be <= hole_d)
 
 # Refinement Domain (Hollow Rectangular Pyramid Shell)
-vertical_angle = 10.0   # Angle (in degrees) of the downward vertical opening towards the free edge
-band_x = 60.0e0         # Thickness of the solid refined block in front of the anchor (x-dir)
-band_y = 10.0e0          # Thickness of the refined shell from the top surface (y-dir)
-band_z = 20.0e0          # Thickness of the refined shell from the symmetry plane (z-dir)
+vertical_angle = 35.0   # Angle (in degrees) of the downward vertical opening towards the free edge
+lateral_angle = 60.0    # Angle (in degrees) of the lateral opening towards the supports
+band_x = 50.0e0         # Thickness of the solid refined block in front of the anchor (x-dir)
+band_y = 15.0e0         # Thickness of the refined shell from the top surface (y-dir)
+band_z = 20.0e0         # Thickness of the refined shell from the symmetry plane (z-dir)
+corner_r = 60.0         # Radius to round off the outer lower pyramid edge (-y and -z)
+y_flat_limit = -190.0   # Base Y-coord where the downward pyramid expansion hits the floor
+bottom_angle = 5.0     # Inclination angle (degrees) rotating around the X-axis
 
 # Steel Anchor
 anchor_r = 10.0        # Anchor radius
@@ -47,8 +51,7 @@ plate_cut_h = plate_h / 3.0 # Webcut plate for load application
 
 # Mesh Parameters
 mesh_size_steel = 4.0
-mesh_size_concrete_inner = 14.0  # Used for boundaries near the anchor
-mesh_size_concrete_outer = 14.0  # Base size for the concrete block
+mesh_size_concrete_outer = 18.0  # Base size for the concrete block
 
 
 # --- GEOMETRY CREATION ---
@@ -138,7 +141,7 @@ cubit.cmd(f"volume {v_plate} name 'steel_plate'")
 # 1. Extend the borehole profile down for clean hex sweeping
 cubit.cmd(f"webcut volume with name 'concrete_main' cylinder radius {hole_r} axis y")
 
-# 2. Create the support boundaries on the free edge (this safely slices through far fields as well)
+# 2. Create the support boundaries on the free edge
 cubit.cmd(f"webcut volume with name 'concrete_*' plane zplane offset {-slab_z/2.0 + support_w}")
 cubit.cmd(f"webcut volume with name 'concrete_*' plane zplane offset {slab_z/2.0 - support_w}")
 
@@ -182,7 +185,6 @@ cubit.cmd(f"volume in grp_steel size {mesh_size_steel}")
 cubit.cmd(f"volume in grp_mortar size {mesh_size_steel}")
 
 # --- FAR FIELD MESH CONSTRAINTS (INTERVAL = 1) ---
-# Identify midpoints of the far field extension curves to precisely target them
 center_x_far = edge_dist - slab_x - far_x / 2.0
 center_y_far = -slab_h - far_y / 2.0
 center_z_far_neg = -slab_z / 2.0 - far_z / 2.0
@@ -205,15 +207,16 @@ breakout_hexes = []
 # Starting bounds for the Outer Pyramid
 x_start = -hole_r - 15.0
 z_start = -hole_r - 10.0
-y_start = -anchor_d - 10.0
+y_start = -anchor_d - 20.0
+x_angle_start = 1.8 * hole_r  
 
 # Calculate expansion slopes
-dx_total = edge_dist - x_start
-target_z_at_edge = -slab_z/2.0 + 2 * support_w
-lateral_tan = abs(target_z_at_edge - z_start) / dx_total
 vertical_tan = math.tan(math.radians(vertical_angle))
+lateral_tan = math.tan(math.radians(lateral_angle))
+bottom_tan = math.tan(math.radians(bottom_angle))
 
 tol = mesh_size_concrete_outer / 2.0 + 1.0 
+support_inner_z = -slab_z / 2.0 + 1.0 * support_w
 
 for h in all_hexes:
     x, y, z = cubit.get_center_point("hex", h)
@@ -221,36 +224,65 @@ for h in all_hexes:
     if x < x_start or x > edge_dist + tol:
         continue
         
-    # Distance from the start
-    dx = max(0, x - x_start)
+    # Cut off refinement entirely within the supports
+    if z < support_inner_z + tol:
+        continue
+        
+    dx_z = max(0, x - x_start)
+    dx_y = max(0, x - x_angle_start)
     
-    # 1. OUTLINE THE OUTER PYRAMID (Rectangular Base)
-    y_lim = y_start - dx * vertical_tan
-    z_lim = z_start - dx * lateral_tan
+    # 1. OUTLINE THE OUTER PYRAMID
+    y_lim_raw = y_start - dx_y * vertical_tan
+    z_lim_raw = z_start - dx_z * lateral_tan
+    
+    # Calculate the inclined floor (rotation around the X-axis)
+    # For negative z, a positive angle makes the floor rise (become less negative)
+    y_floor = y_flat_limit - z * bottom_tan
+    
+    # CLAMP the lateral expansion to the support boundary and vertical to the inclined floor.
+    y_lim = max(y_lim_raw, y_floor)
+    z_lim = max(z_lim_raw, support_inner_z)
     
     y_lim_eff = y_lim - tol
     z_lim_eff = z_lim - tol
     
     in_main = False
     if y >= y_lim_eff and z >= z_lim_eff:
-        in_main = True
+        # Check corner rounding logic
+        y_center = y_lim_eff + corner_r
+        z_center = z_lim_eff + corner_r
+        
+        # If element is in the lower -y and -z quadrant of the corner
+        if y < y_center and z < z_center:
+            # Must fall inside the radial distance
+            if (y - y_center)**2 + (z - z_center)**2 <= corner_r**2:
+                in_main = True
+        else:
+            in_main = True
 
-    # 2. OUTLINE THE INNER UNCRACKED CORE (Rectangular Base)
+    # 2. OUTLINE THE INNER UNCRACKED CORE
     in_core = False
-    
-    # The core only starts after band_x
     if x >= x_start + band_x:
-        # Shift the boundaries inwards by the band thickness
         y_in = y_lim + band_y + tol
         z_in = z_lim + band_z + tol
         
-        # Ensure the core hasn't collapsed past the surface boundaries
         if y_in < 0.1 and z_in < 0.1:
             if y >= y_in and z >= z_in:
-                in_core = True
+                # Apply proportional rounding to the inner core to prevent thinning
+                inner_r = max(0.0, corner_r - min(band_y, band_z))
+                if inner_r > 0:
+                    y_in_center = y_in + inner_r
+                    z_in_center = z_in + inner_r
+                    
+                    if y < y_in_center and z < z_in_center:
+                        if (y - y_in_center)**2 + (z - z_in_center)**2 <= inner_r**2:
+                            in_core = True
+                    else:
+                        in_core = True
+                else:
+                    in_core = True
 
     # 3. SELECTION LOGIC
-    # Refine if it's inside the main pyramid, but outside the uncracked core
     if in_main and not in_core:
         breakout_hexes.append(str(h))
 
@@ -274,6 +306,8 @@ if breakout_hexes:
     print("Refinement complete.")
 else:
     print("No hexes found within the specified breakout domain parameters.")
+
+# return
 
 
 # --- BLOCKS ---
@@ -306,7 +340,7 @@ cubit.cmd(f"nodeset {currentnodeset_id} add node in sideset {currentsideset_id}"
 cubit.cmd(f"nodeset {currentnodeset_id} name 'concrete_top'")
 currentsideset_id += 1; currentnodeset_id += 1
 
-# Concrete Bottom (Moved to new far-field extremity)
+# Concrete Bottom
 cubit.cmd(f"create sideset {currentsideset_id}")
 cubit.cmd(f"sideset {currentsideset_id} name 'bottom'")
 cubit.cmd(f"sideset {currentsideset_id} add surface in grp_concrete expand with y_coord = {-total_y}")
@@ -314,7 +348,7 @@ cubit.cmd(f"nodeset {currentnodeset_id} add node in sideset {currentsideset_id}"
 cubit.cmd(f"nodeset {currentnodeset_id} name 'bottom'")
 currentsideset_id += 1; currentnodeset_id += 1
 
-# Concrete Back Face Support (Moved to new far-field extremity)
+# Concrete Back Face Support
 cubit.cmd(f"create sideset {currentsideset_id}")
 cubit.cmd(f"sideset {currentsideset_id} name 'back_support'")
 cubit.cmd(f"sideset {currentsideset_id} add surface in grp_concrete expand with x_coord = {edge_dist - total_x}")
@@ -329,13 +363,12 @@ free_edge_surfs = []
 
 for s in all_front_surfs:
     cent = cubit.get_center_point("surface", s)
-    # Modified to ensure the support block stays exactly at the physical reaction frame location
     if cent[2] < (-slab_z/2.0 + support_w + 0.01) and cent[2] > (-slab_z/2.0 - 0.01):
         support_surfs.append(str(s))
     else:
         free_edge_surfs.append(str(s))
 
-# Front Support (Outer corner)
+# Front Support
 if support_surfs:
     cubit.cmd(f"create sideset {currentsideset_id}")
     cubit.cmd(f"sideset {currentsideset_id} name 'front_support'")
@@ -344,7 +377,7 @@ if support_surfs:
     cubit.cmd(f"nodeset {currentnodeset_id} name 'front_support'")
     currentsideset_id += 1; currentnodeset_id += 1
 
-# Free Edge (Remainder of the front face)
+# Free Edge
 if free_edge_surfs:
     cubit.cmd(f"create sideset {currentsideset_id}")
     cubit.cmd(f"sideset {currentsideset_id} name 'free_edge'")
@@ -354,7 +387,7 @@ if free_edge_surfs:
     currentsideset_id += 1; currentnodeset_id += 1
 # -----------------------------------------------------------
 
-# Z-Symmetry Back Plane (Moved to new far-field extremity)
+# Z-Symmetry Back Plane
 cubit.cmd(f"create sideset {currentsideset_id}")
 cubit.cmd(f"sideset {currentsideset_id} name 'z_minus_bound'")
 cubit.cmd(f"sideset {currentsideset_id} add surface in grp_concrete expand with z_coord = {-slab_z/2.0 - far_z}")

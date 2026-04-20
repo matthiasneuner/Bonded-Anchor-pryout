@@ -31,8 +31,8 @@ hole_d = 120.0         # Borehole depth
 anchor_d = 120.0       # Depth of the anchor within the borehole (must be <= hole_d)
 
 # Refinement Domain (Hollow Rectangular Pyramid Shell)
-vertical_angle = 10.0   # Angle (in degrees) of the downward vertical opening towards the free edge
-band_x = 60.0e0         # Thickness of the solid refined block in front of the anchor (x-dir)
+vertical_angle = 30.0   # Angle (in degrees) of the downward vertical opening towards the free edge
+band_x = 50.0e0         # Thickness of the solid refined block in front of the anchor (x-dir)
 band_y = 10.0e0          # Thickness of the refined shell from the top surface (y-dir)
 band_z = 20.0e0          # Thickness of the refined shell from the symmetry plane (z-dir)
 
@@ -137,7 +137,7 @@ cubit.cmd(f"volume {v_plate} name 'steel_plate'")
 # 1. Extend the borehole profile down for clean hex sweeping
 cubit.cmd(f"webcut volume with name 'concrete_main' cylinder radius {hole_r} axis y")
 
-# 2. Create the support boundaries on the free edge (this safely slices through far fields as well)
+# 2. Create the support boundaries on the free edge
 cubit.cmd(f"webcut volume with name 'concrete_*' plane zplane offset {-slab_z/2.0 + support_w}")
 cubit.cmd(f"webcut volume with name 'concrete_*' plane zplane offset {slab_z/2.0 - support_w}")
 
@@ -204,11 +204,12 @@ breakout_hexes = []
 # Starting bounds for the Outer Pyramid
 x_start = -hole_r - 15.0
 z_start = -hole_r - 10.0
-y_start = -anchor_d - 25.0
+y_start = -anchor_d - 15.0
+x_angle_start = 1.8 * hole_r  # Delays the vertical slope until the front of the borehole
 
 # Calculate expansion slopes
 dx_total = edge_dist - x_start
-target_z_at_edge = -slab_z/2.0 + 2.0 * support_w
+target_z_at_edge = -slab_z/2.0 + 1.5 * support_w
 lateral_tan = abs(target_z_at_edge - z_start) / dx_total
 vertical_tan = math.tan(math.radians(vertical_angle))
 
@@ -220,12 +221,13 @@ for h in all_hexes:
     if x < x_start or x > edge_dist + tol:
         continue
         
-    # Distance from the start
-    dx = max(0, x - x_start)
+    # Isolate distances so the y-slope and z-slope can trigger at different coordinates
+    dx_z = max(0, x - x_start)
+    dx_y = max(0, x - x_angle_start)
     
     # 1. OUTLINE THE OUTER PYRAMID (Rectangular Base)
-    y_lim = y_start - dx * vertical_tan
-    z_lim = z_start - dx * lateral_tan
+    y_lim = y_start - dx_y * vertical_tan
+    z_lim = z_start - dx_z * lateral_tan
     
     y_lim_eff = y_lim - tol
     z_lim_eff = z_lim - tol

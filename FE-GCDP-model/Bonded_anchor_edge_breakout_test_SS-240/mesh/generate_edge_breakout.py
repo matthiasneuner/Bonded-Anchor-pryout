@@ -50,7 +50,7 @@ plate_h = 20.0        # Plate thickness (y)
 plate_cut_h = plate_h / 3.0 # Webcut plate for load application
 
 # Mesh Parameters
-mesh_size_steel = 4.0
+mesh_size_steel = 3.0
 mesh_size_concrete_outer = 18.0  # Base size for the concrete block
 
 

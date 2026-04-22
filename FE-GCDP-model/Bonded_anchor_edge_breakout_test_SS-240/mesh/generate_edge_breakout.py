@@ -32,7 +32,7 @@ anchor_d = 120.0       # Depth of the anchor within the borehole (must be <= hol
 
 # Refinement Domain (Hollow Rectangular Pyramid Shell)
 vertical_angle = 35.0   # Angle (in degrees) of the downward vertical opening towards the free edge
-lateral_angle = 60.0    # Angle (in degrees) of the lateral opening towards the supports
+lateral_angle = 50.0    # Angle (in degrees) of the lateral opening towards the supports
 band_x = 50.0e0         # Thickness of the solid refined block in front of the anchor (x-dir)
 band_y = 15.0e0         # Thickness of the refined shell from the top surface (y-dir)
 band_z = 20.0e0         # Thickness of the refined shell from the symmetry plane (z-dir)
@@ -50,8 +50,8 @@ plate_h = 20.0        # Plate thickness (y)
 plate_cut_h = plate_h / 3.0 # Webcut plate for load application
 
 # Mesh Parameters
-mesh_size_steel = 3.0
-mesh_size_concrete_outer = 18.0  # Base size for the concrete block
+mesh_size_steel = 4.0
+mesh_size_concrete_outer = 16.0  # Base size for the concrete block
 
 
 # --- GEOMETRY CREATION ---

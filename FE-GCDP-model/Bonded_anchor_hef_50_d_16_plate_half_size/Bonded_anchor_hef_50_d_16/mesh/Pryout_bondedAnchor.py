@@ -14,22 +14,22 @@ hole_d = 50.0         # Borehole depth
 anchor_d = 50.0       # Depth of the anchor within the borehole (must be <= hole_d)
 
 # Refinement Region
-refine_r = 80.0       # Radius of the inner refined concrete region
+refine_r = 120.0       # Radius of the inner refined concrete region
 
 # Steel Anchor
 anchor_r = 8.0        # Anchor radius
 anchor_free_h = 16.0  # Anchor height above the concrete slab
 
 # Steel Plate
-plate_w = 64.0        # Plate width (x and z)
+plate_w = 32.0        # Plate width (x and z)
 plate_h = 16.0        # Plate thickness (y)
 #webcut plate at y = plate_h/3.0
 plate_cut_h = plate_h / 3.0
 
 # Mesh Parameters
 mesh_size_steel = 4.0
-mesh_size_concrete_inner = 6.0
-mesh_size_concrete_outer = 18.0
+mesh_size_concrete_inner = 8.0
+mesh_size_concrete_outer = 24.0
 
 
 # Chalice Domain Parameters
@@ -42,11 +42,10 @@ dR = refine_r * 1.2            # Radius expansion amount at the top
 
 # --- GEOMETRY CREATION ---
 
-# 1. Concrete Slab (Full unified block)
-cubit.cmd(f"create brick x {slab_w} y {slab_h} z {slab_w}")
-v_slab = cubit.get_last_id("volume")
-cubit.cmd(f"move volume {v_slab} y {-slab_h / 2.0}")
-cubit.cmd(f"volume {v_slab} name 'concrete_main'")
+# 1. Concrete Slab Top (thickness = hole_d)
+cubit.cmd(f"create brick x {slab_w} y {hole_d} z {slab_w}")
+v_slab_top = cubit.get_last_id("volume")
+cubit.cmd(f"move volume {v_slab_top} y {-hole_d / 2.0}")
 
 cubit.cmd(f"create cylinder height {hole_d} radius {hole_r}")
 v_hole_tool = cubit.get_last_id("volume")
@@ -56,12 +55,17 @@ cubit.cmd(f"surface {id_cyl_surf} name 'surface_borehole'")
 cubit.cmd(f"rotate volume {v_hole_tool} angle 90 about x")
 cubit.cmd(f"move volume {v_hole_tool} y {-hole_d / 2.0}")
 
-# Subtract the borehole tool, leaving a blind hole in the unified slab
-cubit.cmd(f"subtract volume {v_hole_tool} from volume {v_slab}")
-v_slab = cubit.get_last_id("volume")
-cubit.cmd(f"volume {v_slab} name 'concrete_main'")
+cubit.cmd(f"subtract volume {v_hole_tool} from volume {v_slab_top}")
+v_slab_top = cubit.get_last_id("volume")
+cubit.cmd(f"volume {v_slab_top} name 'concrete_top'")
 
-# 2. Adhesive Mortar (Hollow Cylinder)
+# 2. Concrete Slab Bottom (solid portion)
+cubit.cmd(f"create brick x {slab_w} y {slab_h - hole_d} z {slab_w}")
+v_slab_bot = cubit.get_last_id("volume")
+cubit.cmd(f"move volume {v_slab_bot} y {-hole_d - (slab_h - hole_d) / 2.0}")
+cubit.cmd(f"volume {v_slab_bot} name 'concrete_bot'")
+
+# 3. Adhesive Mortar (Hollow Cylinder)
 cubit.cmd(f"create cylinder height {anchor_d} radius {hole_r}")
 v_mortar_outer = cubit.get_last_id("volume")
 id_mortar_surf = cubit.get_last_id("surface") - 2
@@ -80,7 +84,7 @@ cubit.cmd(f"subtract volume {v_mortar_inner} from volume {v_mortar_outer}")
 v_mortar = cubit.get_last_id("volume")
 cubit.cmd(f"volume {v_mortar} name 'mortar'")
 
-# 3. Steel Anchor (Solid Cylinder)
+# 4. Steel Anchor (Solid Cylinder)
 anchor_len = anchor_d + anchor_free_h
 anchor_y_pos = (-anchor_d + anchor_free_h) / 2.0
 cubit.cmd(f"create cylinder height {anchor_len} radius {anchor_r}")
@@ -91,7 +95,7 @@ cubit.cmd(f"rotate volume {v_anchor} angle 90 about x")
 cubit.cmd(f"move volume {v_anchor} y {anchor_y_pos}")
 cubit.cmd(f"volume {v_anchor} name 'steel_anchor'")
 
-# 4. Steel Plate
+# 5. Steel Plate
 cubit.cmd(f"create brick x {plate_w} y {plate_h} z {plate_w}")
 v_plate = cubit.get_last_id("volume")
 cubit.cmd(f"move volume {v_plate} y {plate_h / 2.0}")
@@ -108,8 +112,8 @@ cubit.cmd(f"volume {v_plate} name 'steel_plate'")
 
 # --- STRUCTURAL DECOMPOSITION FOR MESHING ---
 
-# 1. Extend the borehole profile down through the solid section of the unified concrete block
-cubit.cmd(f"webcut volume with name 'concrete_main' cylinder radius {hole_r} axis y")
+# 1. Extend the borehole profile down through the bottom concrete block
+cubit.cmd(f"webcut volume with name 'concrete_bot' cylinder radius {hole_r} axis y")
 
 # 2. Create the larger inner refined region across all concrete blocks
 cubit.cmd(f"webcut volume with name 'concrete_*' cylinder radius {refine_r} axis y")
@@ -142,7 +146,6 @@ cubit.cmd("group 'grp_steel' add volume with name 'steel_*'")
 
 # --- TOPOLOGY & MESH CONSTRAINTS ---
 cubit.cmd("imprint volume in grp_steel")
-cubit.cmd("imprint volume in grp_concrete")
 
 cubit.cmd("merge volume in grp_concrete")
 cubit.cmd("merge volume in grp_mortar")
@@ -159,20 +162,15 @@ inner_vols = []
 outer_vols = []
 
 for v in concrete_vols:
-    # A vector of coordinates describing the entity's bounding box. Ten (10) values will be returned in axis-min, axis-max, and axis-range order, repeated for x-axis, y-axis, and z-axis and ending with the total diagonal measure.
     bbox = cubit.get_bounding_box("volume", v)
     # Determine the maximum radial extent of this volume's bounding box
-    max_r = max(abs(bbox[0]), abs(bbox[1]), abs(bbox[6]), abs(bbox[7]))
+    max_r = max(abs(bbox[0]), abs(bbox[1]), abs(bbox[4]), abs(bbox[5]))
     
     # Add a small tolerance to account for floating point inaccuracies
     if max_r < refine_r + 0.1:
         inner_vols.append(str(v))
     else:
         outer_vols.append(str(v))
-
-print(f"Identified {len(inner_vols)} inner concrete volumes and {len(outer_vols)} outer concrete volumes.")
-print(f"Inner volumes: {', '.join(inner_vols)}")
-print(f"Outer volumes: {', '.join(outer_vols)}")
 
 # Apply the respective mesh sizes
 if inner_vols:
@@ -222,20 +220,18 @@ if chalice_hexes:
     cubit.cmd("create group 'chalice_domain'")
     
     # Chunk the list to avoid exceeding Cubit's maximum command line character limit
-    chunk_size = 200
+    chunk_size = 1000
     for i in range(0, len(chalice_hexes), chunk_size):
         chunk = " ".join(chalice_hexes[i:i + chunk_size])
         cubit.cmd(f"group 'chalice_domain' add hex {chunk}")
-    
+   
 
     # Apply the hex refinement to the group
-    cubit.cmd("refine hex in chalice_domain depth 0")
-
+    cubit.cmd("refine hex in chalice_domain")
     
     print("Refinement complete.")
 else:
     print("No hexes found within the specified chalice domain parameters.")
-
 
 #create blocks
 anchor_bId = 1

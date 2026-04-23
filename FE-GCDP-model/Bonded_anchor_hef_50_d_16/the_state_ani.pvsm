@@ -26843,7 +26843,7 @@
         <Domain name="bool" id="13428.ApplyTetrahedralize.bool"/>
       </Property>
       <Property name="CaseFileName" id="13428.CaseFileName" number_of_elements="1">
-        <Element index="0" value="/home/matthias/constitutive_modeling/Bonded-Anchor-pryout/FE-GCDP-model/Bonded_anchor_hef_50_d_16/AnchorPryOut.case"/>
+        <Element index="0" value="./AnchorPryOut.case"/>
         <Domain name="files" id="13428.CaseFileName.files"/>
       </Property>
       <Property name="CellArrayInfo" id="13428.CellArrayInfo" number_of_elements="8">

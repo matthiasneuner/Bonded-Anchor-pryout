@@ -31,14 +31,14 @@ hole_d = 120.0         # Borehole depth
 anchor_d = 120.0       # Depth of the anchor within the borehole (must be <= hole_d)
 
 # Refinement Domain (Hollow Rectangular Pyramid Shell)
-vertical_angle = 00.0   # Angle (in degrees) of the downward vertical opening towards the free edge
+vertical_angle = 40.0   # Angle (in degrees) of the downward vertical opening towards the free edge
 lateral_angle = 60.0    # Angle (in degrees) of the lateral opening towards the supports
 band_x = 50.0e0         # Thickness of the solid refined block in front of the anchor (x-dir)
-band_y = 10.0e0         # Thickness of the refined shell from the top surface (y-dir)
-band_z = 10.0e0         # Thickness of the refined shell from the symmetry plane (z-dir)
-corner_r = 0.0          # Radius to round off the outer lower pyramid edge (-y and -z)
-y_flat_limit = -190.0   # Base Y-coord where the downward pyramid expansion hits the floor
-bottom_angle = 7.0      # Inclination angle (degrees) rotating around the X-axis
+band_y = 15.0e0         # Thickness of the refined shell from the top surface (y-dir)
+band_z = 20.0e0         # Thickness of the refined shell from the symmetry plane (z-dir)
+corner_r = 60.0         # Radius to round off the outer lower pyramid edge (-y and -z)
+y_flat_limit = -220.0   # Base Y-coord where the downward pyramid expansion hits the floor
+bottom_angle = 5.0     # Inclination angle (degrees) rotating around the X-axis
 
 # Steel Anchor
 anchor_r = 10.0        # Anchor radius
@@ -51,9 +51,7 @@ plate_cut_h = plate_h / 3.0 # Webcut plate for load application
 
 # Mesh Parameters
 mesh_size_steel = 4.0
-mesh_size_concrete_outer = 17.0  # Base size for the concrete block
-
-cubit.cmd("set node constraint off")
+mesh_size_concrete_outer = 16.0  # Base size for the concrete block
 
 
 # --- GEOMETRY CREATION ---
@@ -140,8 +138,8 @@ cubit.cmd(f"volume {v_plate} name 'steel_plate'")
 
 # --- STRUCTURAL DECOMPOSITION FOR MESHING ---
 
-# 1. Extend the borehole profile down for clean hex sweeping through the COMPLETE model
-cubit.cmd(f"webcut volume with name 'concrete_*' cylinder radius {hole_r} axis y")
+# 1. Extend the borehole profile down for clean hex sweeping
+cubit.cmd(f"webcut volume with name 'concrete_main' cylinder radius {hole_r} axis y")
 
 # 2. Create the support boundaries on the free edge
 cubit.cmd(f"webcut volume with name 'concrete_*' plane zplane offset {-slab_z/2.0 + support_w}")
@@ -201,7 +199,7 @@ cubit.cmd("mesh volume all")
 
 
 # ==========================================
-# ELEMENT-LEVEL REFINEMENT (HOLLOW RECTANGULAR PYRAMID & CORE)
+# ELEMENT-LEVEL REFINEMENT (HOLLOW RECTANGULAR PYRAMID)
 # ==========================================
 all_hexes = cubit.parse_cubit_list("hex", "in grp_concrete expand")
 breakout_hexes = []
@@ -223,11 +221,6 @@ support_inner_z = -slab_z / 2.0 + 1.0 * support_w
 for h in all_hexes:
     x, y, z = cubit.get_center_point("hex", h)
     
-    # 0. CYLINDER CORE: Catch all hexes inside the vertical borehole projection
-    if (x**2 + z**2) <= (hole_r + 0.1)**2:
-        breakout_hexes.append(str(h))
-        continue
-        
     if x < x_start or x > edge_dist + tol:
         continue
         
@@ -313,6 +306,8 @@ if breakout_hexes:
     print("Refinement complete.")
 else:
     print("No hexes found within the specified breakout domain parameters.")
+
+# return
 
 
 # --- BLOCKS ---

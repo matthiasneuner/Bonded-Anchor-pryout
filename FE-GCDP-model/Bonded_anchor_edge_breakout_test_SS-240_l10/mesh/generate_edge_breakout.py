@@ -7,7 +7,7 @@ cubit.cmd("reset")
 # --- PARAMETERS ---
 # Far Field Parameters
 far_x = 330.0        # Size of far field in -x direction
-far_y = 250.0        # Size of far field in -y direction
+far_y = 150.0        # Size of far field in -y direction
 far_z = 320.0        # Size of far field in -z direction
 ff_interval = 3
 
@@ -15,10 +15,11 @@ ff_interval = 3
 edge_dist = 240.0    # Distance from anchor center to the free edge (+x direction)
 slab_x = 330.0       # Total length (x)
 support_w = 20.0     # Width of the support area at the outer corners of the breakout face
+buffer_z = 150.0     # NEW: Width of the coarse "far field" buffer between the fine mesh and the support
 
 # Distance of the inner supports is 4 * edge_dist. Total width adds the support blocks.
 slab_z = (4.0 * edge_dist) + (2.0 * support_w) 
-slab_h = 250         # Total height (y)
+slab_h = 350         # Total height (y)
 
 # Derived Total Dimensions
 total_x = slab_x + far_x
@@ -69,12 +70,29 @@ cubit.cmd(f"move volume {v_base} x {shift_x_base} y {-total_y / 2.0}")
 # Webcut out the original slab boundary planes to isolate regions
 cubit.cmd(f"webcut volume all with plane yplane offset {-slab_h}")
 cubit.cmd(f"webcut volume all with plane xplane offset {edge_dist - slab_x}")
-cubit.cmd(f"webcut volume all with plane zplane offset {-slab_z / 2.0}")
-cubit.cmd(f"webcut volume all with plane zplane offset {slab_z / 2.0}")
 
-# Name the far fields and the main concrete block
+# Calculate Z-plane boundaries for the support and the new buffer zone
+z_supp_outer = slab_z / 2.0
+z_supp_inner = slab_z / 2.0 - support_w
+z_fine_stop = z_supp_inner - buffer_z
+
+# Isolate the outermost far field blocks
+cubit.cmd(f"webcut volume all with plane zplane offset {-z_supp_outer}")
+cubit.cmd(f"webcut volume all with plane zplane offset {z_supp_outer}")
+
+# Isolate the physical support blocks
+cubit.cmd(f"webcut volume all with plane zplane offset {-z_supp_inner}")
+cubit.cmd(f"webcut volume all with plane zplane offset {z_supp_inner}")
+
+# Isolate the new buffer zones
+cubit.cmd(f"webcut volume all with plane zplane offset {-z_fine_stop}")
+cubit.cmd(f"webcut volume all with plane zplane offset {z_fine_stop}")
+
+# Name everything outside the central core as far field
 cubit.cmd("volume all name 'concrete_far'")
-cubit.cmd(f"volume with x_coord > {edge_dist - slab_x - 0.1} and y_coord > {-slab_h - 0.1} and z_coord > {-slab_z/2.0 - 0.1} and z_coord < {slab_z/2.0 + 0.1} name 'concrete_main'")
+
+# Redefine concrete_main to stop BEFORE the buffer zone
+cubit.cmd(f"volume with x_coord > {edge_dist - slab_x - 0.1} and y_coord > {-slab_h - 0.1} and z_coord > {-z_fine_stop - 0.1} and z_coord < {z_fine_stop + 0.1} name 'concrete_main'")
 
 # Retrieve the inner slab ID for the borehole subtraction
 v_slab_list = cubit.parse_cubit_list("volume", "with name 'concrete_main'")
@@ -143,11 +161,7 @@ cubit.cmd(f"volume {v_plate} name 'steel_plate'")
 # 1. Extend the borehole profile down for clean hex sweeping through the COMPLETE model
 cubit.cmd(f"webcut volume with name 'concrete_*' cylinder radius {hole_r} axis y")
 
-# 2. Create the support boundaries on the free edge
-cubit.cmd(f"webcut volume with name 'concrete_*' plane zplane offset {-slab_z/2.0 + support_w}")
-cubit.cmd(f"webcut volume with name 'concrete_*' plane zplane offset {slab_z/2.0 - support_w}")
-
-# 3. Webcut plate for loading zone
+# 2. Webcut plate for loading zone
 cubit.cmd(f"webcut volume with name 'steel_plate' plane yplane offset {plate_cut_h}")
 
 # --- SYMMETRY AND DECOMPOSITION ---
@@ -186,14 +200,22 @@ cubit.cmd(f"volume in grp_concrete size {mesh_size_concrete_outer}")
 cubit.cmd(f"volume in grp_steel size {mesh_size_steel}")
 cubit.cmd(f"volume in grp_mortar size {mesh_size_steel}")
 
-# --- FAR FIELD MESH CONSTRAINTS (INTERVAL = 1) ---
+# --- FAR FIELD MESH CONSTRAINTS ---
 center_x_far = edge_dist - slab_x - far_x / 2.0
 center_y_far = -slab_h - far_y / 2.0
-center_z_far_neg = -slab_z / 2.0 - far_z / 2.0
+
+# Calculate the midpoints for the three distinct Z-segments (Far block, Support block, Buffer block)
+z_mid_far = -z_supp_outer - far_z / 2.0
+z_mid_supp = -z_supp_inner - support_w / 2.0
+z_mid_buffer = -z_fine_stop - buffer_z / 2.0
 
 cubit.cmd(f"curve in volume with name 'concrete_far*' expand with x_coord = {center_x_far} tolerance 0.1 interval {ff_interval}")
 cubit.cmd(f"curve in volume with name 'concrete_far*' expand with y_coord = {center_y_far} tolerance 0.1 interval {ff_interval}")
-cubit.cmd(f"curve in volume with name 'concrete_far*' expand with z_coord = {center_z_far_neg} tolerance 0.1 interval {ff_interval}")
+
+# Apply intervals to force coarseness in the Z direction
+cubit.cmd(f"curve in volume with name 'concrete_far*' expand with z_coord = {z_mid_far} tolerance 0.1 interval {ff_interval}")
+cubit.cmd(f"curve in volume with name 'concrete_far*' expand with z_coord = {z_mid_supp} tolerance 0.1 interval 1")
+cubit.cmd(f"curve in volume with name 'concrete_far*' expand with z_coord = {z_mid_buffer} tolerance 0.1 interval {ff_interval}")
 
 
 # Generate Base Mesh

@@ -6,19 +6,19 @@ cubit.cmd("reset")
 
 # --- PARAMETERS ---
 # Far Field Parameters
-far_x = 340.0        # Size of far field in -x direction
-far_y = 270.0        # Size of far field in -y direction
+far_x = 330.0        # Size of far field in -x direction
+far_y = 250.0        # Size of far field in -y direction
 far_z = 320.0        # Size of far field in -z direction
 ff_interval = 3
 
 # Concrete Slab
 edge_dist = 240.0    # Distance from anchor center to the free edge (+x direction)
-slab_x = 320.0       # Total length (x)
+slab_x = 330.0       # Total length (x)
 support_w = 20.0     # Width of the support area at the outer corners of the breakout face
 
 # Distance of the inner supports is 4 * edge_dist. Total width adds the support blocks.
 slab_z = (4.0 * edge_dist) + (2.0 * support_w) 
-slab_h = 230         # Total height (y)
+slab_h = 250         # Total height (y)
 
 # Derived Total Dimensions
 total_x = slab_x + far_x

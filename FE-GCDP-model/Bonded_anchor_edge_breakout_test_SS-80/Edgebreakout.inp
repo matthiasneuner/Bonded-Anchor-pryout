@@ -103,7 +103,7 @@ steel-1.shear_loading, 1, 1
 **
 ** Name: load Type: Displacement
 *Boundary, type=displacement
-steel-1.shear_loading, 1, 1, 50.0
+steel-1.shear_loading, 1, 1, 5.0
 ** OUTPUT REQUESTS
 ** 
 *Print, contact=yes

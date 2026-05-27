@@ -32,15 +32,15 @@ anchor_d = 100.0     # Depth of the anchor within the borehole (must be <= hole_
 
 # Refinement Domain (Hollow Rectangular Pyramid Shell)
 vertical_angle = 30.0          # Angle (in degrees) of the downward vertical opening towards the free edge
-vertical_start_dist_x = 25.0  # Distance in front of the anchor where the vertical downward angle begins
+vertical_start_dist_x = 35.0  # Distance in front of the anchor where the vertical downward angle begins
 lateral_angle = 60.0          # Angle (in degrees) of the lateral opening towards the supports
 band_x = 50.0e0               # Thickness of the solid refined block in front of the anchor (x-dir)
-band_y = 15.0e0               # Thickness of the refined shell from the top surface (y-dir)
-band_z = 20.0e0               # Thickness of the refined shell from the symmetry plane (z-dir)
-corner_r = 0.0                # Radius to round off the outer lower pyramid edge (-y and -z)
+band_y = 20.0e0               # Thickness of the refined shell from the top surface (y-dir)
+band_z = 35.0e0               # Thickness of the refined shell from the symmetry plane (z-dir)
+corner_r = 20.0                # Radius to round off the outer lower pyramid edge (-y and -z)
 y_flat_limit = -150.0         # Base Y-coord where the downward pyramid expansion hits the floor
 bottom_angle = 10.0            # Inclination angle (degrees) rotating around the X-axis
-pyramid_start_depth_y = 140.0 # Adjust this to change the starting depth below the anchor 
+pyramid_start_depth_y = 130.0 # Adjust this to change the starting depth below the anchor 
 
 # Steel Anchor
 anchor_r = 8.0         # Anchor radius

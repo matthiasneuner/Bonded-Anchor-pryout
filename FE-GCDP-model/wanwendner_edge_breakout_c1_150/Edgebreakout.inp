@@ -10,7 +10,7 @@
 ** PARTS
 **
 *Part, name=concrete
-*Include, input="./mesh/coarse/modified/concrete.inp"
+*Include, input="./mesh/adaptive_v2/modified/concrete.inp"
 *Solid Section, elset=dummy, material=dummy
 *End Part
 **  
@@ -27,7 +27,7 @@
 **
 ** UEL Props
 **
-*Include, input="./incfiles/uelprops_GCDP_C20_l4.inc"
+*Include, input="./incfiles/uelprops_GCDP_RWW_batch_E1_l4.inc"
 **
 ** ASSEMBLY
 **
@@ -39,10 +39,10 @@
 *Instance, name=steel-1, part=steel
 *End Instance
 **  
-*TIE, NAME=ANCHOR_TO_MORTAR,TYPE=SURFACE TO SURFACE
+*TIE, NAME=ANCHOR_TO_MORTAR,TYPE=SURFACE TO SURFACE, ADJUST=YES
 steel-1.mortar_to_anchor, steel-1.anchor_to_mortar
-*TIE, NAME=MORTAR_TO_CONCRETE,TYPE=SURFACE TO SURFACE
-concrete-1.concrete_to_mortar, steel-1.mortar_to_concrete
+*TIE, NAME=MORTAR_TO_CONCRETE,TYPE=SURFACE TO SURFACE, ADJUST=YES
+steel-1.mortar_to_concrete, concrete-1.concrete_to_mortar
 *End Assembly
 **  
 ** MATERIALS
@@ -50,11 +50,16 @@ concrete-1.concrete_to_mortar, steel-1.mortar_to_concrete
 *Material, name=STEEL_ANCHOR
 *Elastic
 200000., 0.3
+** yield strength of 1080MPa:
+*Plastic
+1080., 0.
 *DENSITY
 7.85e-8
 *Material, name=STEEL_PLATE
 *Elastic
 200000., 0.3
+*Plastic
+1080., 0.
 *DENSITY
 7.85e-8
 *Material, name=dummy
@@ -71,8 +76,8 @@ concrete-1.concrete_to_mortar, steel-1.mortar_to_concrete
 ** INTERACTION PROPERTIES
 ** 
 *Surface Interaction, name="steel concrete"
-*Surface Behavior, pressure-overclosure=LINEAR
-1e6
+** *Surface Behavior, pressure-overclosure=LINEAR
+** 1e8
 ** *CONTACT INITIALIZATION DATA, NAME=Anchor_Clearance, INITIAL CLEARANCE=0.001
 *Contact
 *Contact Inclusions
@@ -97,8 +102,8 @@ steel-1.shear_loading, 1, 1
 ** STEP: loading
 ** 
 *Step, name=loading, nlgeom=no, inc=100000
-** *Dynamic
-*Static
+** *Static
+*dynamic, application=QUASI-STATIC
 5e-4, 1, 1e-08, 5e-3
 **
 ** Name: load Type: Displacement

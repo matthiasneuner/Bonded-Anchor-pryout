@@ -176,6 +176,9 @@ steel-1.ANCHOR_TO_PLATE, steel-1.PLATE_TO_ANCHOR
 *Contact Property Assignment
 steel-1.plate_bottom, concrete-1.concrete_top, "steel concrete"
 steel-1.ANCHOR_TO_PLATE, steel-1.PLATE_TO_ANCHOR, "steel steel"
+*Contact Formulation, type=SLIDING FORMULATION
+steel-1.plate_bottom, concrete-1.concrete_top, SMALL SLIDING
+steel-1.ANCHOR_TO_PLATE, steel-1.PLATE_TO_ANCHOR, FINITE SLIDING
 **
 ** ============================================================
 ** BOUNDARY CONDITIONS

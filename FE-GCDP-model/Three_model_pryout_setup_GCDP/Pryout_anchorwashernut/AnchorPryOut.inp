@@ -96,14 +96,14 @@
 ** imposed (see the contact section below).
 ** Slave is the shaft surface: it is the more finely meshed side of this pair
 ** (96 vs 48 faces, since the nut is meshed coarsely on purpose).
-*TIE, NAME=NUT_TO_ANCHOR, ADJUST=NO, TYPE=SURFACE TO SURFACE
+*TIE, NAME=NUT_TO_ANCHOR, ADJUST=YES, TYPE=SURFACE TO SURFACE
 steel-1.anchor_to_nut, steel-1.nut_to_anchor
 **
 ** POSITION TOLERANCE covers the DIN 125 clearance bore: the washer top starts
 ** at r = dWasherIn/2 while the nut bottom starts at r = dAnchor/2, so the
 ** innermost ring of nut-bottom slave nodes would otherwise find no master
 ** facet. Scale with dAnchor: > (dWasherIn - dAnchor)/2 = 0.5 mm for M16.
-*TIE, NAME=NUT_TO_WASHER, ADJUST=NO, POSITION TOLERANCE=0.6, TYPE=SURFACE TO SURFACE
+*TIE, NAME=NUT_TO_WASHER, ADJUST=YES, POSITION TOLERANCE=0.6, TYPE=SURFACE TO SURFACE
 steel-1.nut_to_washer, steel-1.washer_to_nut
 **
 ** Washer bottom tied to the plate top: the fixture is fully clamped, so no slip
@@ -112,11 +112,11 @@ steel-1.nut_to_washer, steel-1.washer_to_nut
 ** dClearance, so every slave node has a master facet directly beneath it.
 ** Slave is washer_bottom: it is the smaller surface (54 faces against 198) and
 ** marginally the finer of the two.
-*TIE, NAME=WASHER_TO_PLATE, ADJUST=NO, TYPE=SURFACE TO SURFACE
+*TIE, NAME=WASHER_TO_PLATE, ADJUST=YES, TYPE=SURFACE TO SURFACE
 steel-1.washer_bottom, steel-1.plate_top
-*TIE, NAME=ANCHOR_TO_MORTAR, ADJUST=NO, TYPE=SURFACE TO SURFACE
+*TIE, NAME=ANCHOR_TO_MORTAR, ADJUST=YES, TYPE=SURFACE TO SURFACE
 steel-1.mortar_to_anchor, steel-1.anchor_to_mortar
-*TIE, NAME=MORTAR_TO_CONCRETE, ADJUST=NO, TYPE=SURFACE TO SURFACE
+*TIE, NAME=MORTAR_TO_CONCRETE, ADJUST=YES, TYPE=SURFACE TO SURFACE
 concrete-1.concrete_to_mortar, steel-1.mortar_to_concrete
 *End Assembly
 **

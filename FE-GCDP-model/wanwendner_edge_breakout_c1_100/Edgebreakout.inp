@@ -10,12 +10,12 @@
 ** PARTS
 **
 *Part, name=concrete
-*Include, input="./mesh/modified/concrete.inp"
+*Include, input="./mesh/v1/modified/concrete.inp"
 *Solid Section, elset=dummy, material=dummy
 *End Part
 **  
 *Part, name=steel
-*Include, input="./mesh/modified/steel.inp"
+*Include, input="./mesh/v1/modified/steel.inp"
 *Solid Section, elset=STEEL, material=STEEL_PLATE
 *ORIENTATION, name=MORTAR_CYL, SYSTEM=CYLINDRICAL
 0, 0, 0, 0, 1, 0
@@ -27,7 +27,7 @@
 **
 ** UEL Props
 **
-*Include, input="./incfiles/uelprops_GCDP.inc"
+*Include, input="./incfiles/uelprops_GCDP_RWW_batch_E1_l4.inc"
 **
 ** ASSEMBLY
 **
@@ -37,12 +37,13 @@
 *End Instance
 **  
 *Instance, name=steel-1, part=steel
+,0.5,
 *End Instance
 **  
 *TIE, NAME=ANCHOR_TO_MORTAR,TYPE=SURFACE TO SURFACE
 steel-1.mortar_to_anchor, steel-1.anchor_to_mortar
 *TIE, NAME=MORTAR_TO_CONCRETE,TYPE=SURFACE TO SURFACE
-concrete-1.concrete_to_mortar, steel-1.mortar_to_concrete
+steel-1.mortar_to_concrete, concrete-1.concrete_to_mortar
 *End Assembly
 **  
 ** MATERIALS
@@ -50,37 +51,39 @@ concrete-1.concrete_to_mortar, steel-1.mortar_to_concrete
 *Material, name=STEEL_ANCHOR
 *Elastic
 200000., 0.3
+*plastic
+1080
 *DENSITY
-7.85e-8
+7.85e-9
 *Material, name=STEEL_PLATE
 *Elastic
 200000., 0.3
+*plastic
+1080
 *DENSITY
-7.85e-8
+7.85e-9
 *Material, name=dummy
 *Elastic
 1e-12, 0.3
 *DENSITY
-2.4e-8
+2.4e-9
 **
 *Material, name=stick_slip
 *Elastic, type=TRACTION
 5400, 2700, 2700
 *DENSITY
-2e-8
+2e-9
 ** INTERACTION PROPERTIES
 ** 
 *Surface Interaction, name="steel concrete"
-*Surface Behavior, pressure-overclosure=LINEAR
-1e6
-** *CONTACT INITIALIZATION DATA, NAME=Anchor_Clearance, INITIAL CLEARANCE=0.001
+*Surface Behavior
+** , pressure-overclosure=LINEAR
+** 1e5
 *Contact
 *Contact Inclusions
 steel-1.PLATE_BOTTOM, concrete-1.CONCRETE_TOP
 *Contact Property Assignment
 steel-1.PLATE_BOTTOM, concrete-1.CONCRETE_TOP, "steel concrete"
-** *CONTACT INITIALIZATION ASSIGNMENT
-** steel-1.PLATE_BOTTOM, concrete-1.CONCRETE_TOP, Anchor_Clearance
 ** 
 ** Name: concrete_xzSymm Type: Symmetry/Antisymmetry/Encastre
 *Boundary
@@ -88,6 +91,7 @@ concrete-1.back_support, 2, 2
 concrete-1.back_support, 1, 1
 ** concrete-1.bottom, 1, 1
 concrete-1.bottom, 2, 2
+** concrete-1.concrete_top, 2, 2
 concrete-1.front_support, 1, 1
 *Boundary
 steel-1.z_symm, zSYMM
@@ -97,13 +101,18 @@ steel-1.shear_loading, 1, 1
 ** STEP: loading
 ** 
 *Step, name=loading, nlgeom=no, inc=100000
-** *Dynamic
-*Static
+*Dynamic, application=QUASI-STATIC
+** *Static
 5e-4, 1, 1e-08, 5e-3
+*contact controls, stabilize
+1e-1
+*Controls, parameters=time incrementation
+10,15
 **
 ** Name: load Type: Displacement
 *Boundary, type=displacement
 steel-1.shear_loading, 1, 1, 5.0
+steel-1.shear_loading, 2, 2, 0.0
 ** OUTPUT REQUESTS
 ** 
 *Print, contact=yes

@@ -132,28 +132,28 @@ concrete-1.concrete_to_mortar, steel-1.mortar_to_concrete
 *Elastic
 200000., 0.3
 *DENSITY
-7.85e-9
+7.85e-8
 *Material, name=STEEL_PLATE
 *Elastic
 200000., 0.3
 *DENSITY
-7.85e-9
+7.85e-8
 *Material, name=STEEL_FASTENER
 *Elastic
 200000., 0.3
 *DENSITY
-7.85e-9
+7.85e-8
 *Material, name=dummy
 *Elastic
 1e-6, 0.3
 *DENSITY
-2.4e-9
+2.4e-8
 **
 *Material, name=stick_slip
 *Elastic, type=TRACTION
 5400, 2700, 2700
 *DENSITY
-2e-9
+2e-8
 **
 ** ============================================================
 ** CONTACT INTERACTIONS (General Contact — penalty, linear overclosure)
@@ -178,7 +178,7 @@ steel-1.plate_bottom, concrete-1.concrete_top, "steel concrete"
 steel-1.ANCHOR_TO_PLATE, steel-1.PLATE_TO_ANCHOR, "steel steel"
 *Contact Formulation, type=SLIDING FORMULATION
 steel-1.plate_bottom, concrete-1.concrete_top, SMALL SLIDING
-steel-1.ANCHOR_TO_PLATE, steel-1.PLATE_TO_ANCHOR, FINITE SLIDING
+steel-1.ANCHOR_TO_PLATE, steel-1.PLATE_TO_ANCHOR, SMALL SLIDING
 **
 ** ============================================================
 ** BOUNDARY CONDITIONS
@@ -225,7 +225,7 @@ steel-1.plate_left_loading, 1, 1
 *Include, input="./incfiles/fileOutput.inc"
 *end step
 *Step, name=loading, nlgeom=no, inc=100000
-*Dynamic
+*Dynamic, application=QUASI-STATIC
 5e-3, 1, 1e-08, 5e-3
 **
 *Boundary, type=displacement, amplitude=step_amplitude
